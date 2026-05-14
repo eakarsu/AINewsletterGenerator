@@ -3,14 +3,28 @@ const router = express.Router();
 const pool = require('../db');
 const auth = require('../middleware/auth');
 
-// GET /api/newsletters
+// GET /api/newsletters?page=1&limit=20
 router.get('/', auth, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM newsletters WHERE user_id = $1 ORDER BY created_at DESC',
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const countResult = await pool.query(
+      'SELECT COUNT(*) FROM newsletters WHERE user_id = $1',
       [req.user.id]
     );
-    res.json(result.rows);
+    const total = parseInt(countResult.rows[0].count);
+
+    const result = await pool.query(
+      'SELECT * FROM newsletters WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+      [req.user.id, limit, offset]
+    );
+
+    res.json({
+      data: result.rows,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
   } catch (err) {
     console.error('List newsletters error:', err);
     res.status(500).json({ error: 'Server error' });

@@ -1,25 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { FiPlus, FiEdit2, FiTrash2, FiUsers } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiUsers, FiUpload } from 'react-icons/fi';
 import api from '../api';
 import Modal from '../components/Modal';
+import Pagination from '../components/Pagination';
 
 const emptyForm = { name: '', email: '', status: 'active', subscribed_date: '', tags: '' };
 
 function Subscribers() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ totalPages: 1, total: 0 });
   const [selectedItem, setSelectedItem] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
+  const [importing, setImporting] = useState(false);
+  const csvInputRef = useRef(null);
 
-  const fetchItems = useCallback(async () => {
+  const fetchItems = useCallback(async (p = 1) => {
     try {
-      const res = await api.get('/subscribers');
-      const data = Array.isArray(res.data) ? res.data : (res.data.data || res.data.items || []);
+      setLoading(true);
+      const res = await api.get('/subscribers', { params: { page: p, limit: 20 } });
+      const data = res.data.data || (Array.isArray(res.data) ? res.data : []);
       setItems(data);
+      if (res.data.pagination) setPagination(res.data.pagination);
     } catch (err) {
       toast.error('Failed to load subscribers');
     } finally {
@@ -27,7 +34,9 @@ function Subscribers() {
     }
   }, []);
 
-  useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => { fetchItems(page); }, [fetchItems, page]);
+
+  const handlePageChange = (p) => { setPage(p); };
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -38,7 +47,7 @@ function Subscribers() {
       toast.success('Subscriber added successfully');
       setShowCreate(false);
       setForm({ ...emptyForm });
-      fetchItems();
+      fetchItems(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to add subscriber');
     }
@@ -51,7 +60,7 @@ function Subscribers() {
       toast.success('Subscriber updated successfully');
       setShowEdit(false);
       setShowDetail(false);
-      fetchItems();
+      fetchItems(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update subscriber');
     }
@@ -64,9 +73,30 @@ function Subscribers() {
       toast.success('Subscriber deleted successfully');
       setShowDetail(false);
       setSelectedItem(null);
-      fetchItems();
+      fetchItems(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete subscriber');
+    }
+  };
+
+  const handleCSVImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/subscribers/import-csv', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success(`Import complete: ${res.data.inserted} added, ${res.data.skipped} skipped`);
+      fetchItems(1);
+      setPage(1);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'CSV import failed');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
     }
   };
 
@@ -90,18 +120,34 @@ function Subscribers() {
     return <span className={`badge ${map[status] || 'badge-primary'}`}>{status || 'active'}</span>;
   };
 
-  if (loading) {
+  if (loading && items.length === 0) {
     return <div className="loading-container"><div className="spinner"></div><span className="loading-text">Loading subscribers...</span></div>;
   }
 
   return (
     <div>
       <div className="page-header">
-        <div><h2>Subscribers</h2><p>Manage your subscriber base and contacts</p></div>
-        <button className="btn btn-primary" onClick={openCreate}><FiPlus /> New Subscriber</button>
+        <div><h2>Subscribers</h2><p>Manage your subscriber base and contacts ({pagination.total || 0} total)</p></div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv"
+            style={{ display: 'none' }}
+            onChange={handleCSVImport}
+          />
+          <button
+            className="btn btn-secondary"
+            onClick={() => csvInputRef.current && csvInputRef.current.click()}
+            disabled={importing}
+          >
+            <FiUpload /> {importing ? 'Importing...' : 'Import CSV'}
+          </button>
+          <button className="btn btn-primary" onClick={openCreate}><FiPlus /> New Subscriber</button>
+        </div>
       </div>
 
-      {items.length === 0 ? (
+      {items.length === 0 && !loading ? (
         <div className="table-container"><div className="empty-state"><FiUsers /><h3>No subscribers yet</h3><p>Add your first subscriber to get started</p></div></div>
       ) : (
         <div className="table-container">
@@ -119,6 +165,7 @@ function Subscribers() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={pagination.totalPages} onPageChange={handlePageChange} />
         </div>
       )}
 

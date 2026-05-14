@@ -3,23 +3,28 @@ import { toast } from 'react-toastify';
 import { FiPlus, FiEdit2, FiTrash2, FiSend } from 'react-icons/fi';
 import api from '../api';
 import Modal from '../components/Modal';
+import Pagination from '../components/Pagination';
 
 const emptyForm = { name: '', newsletter_id: '', segment_id: '', status: 'draft', scheduled_at: '' };
 
 function Campaigns() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ totalPages: 1, total: 0 });
   const [selectedItem, setSelectedItem] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
 
-  const fetchItems = useCallback(async () => {
+  const fetchItems = useCallback(async (p = 1) => {
     try {
-      const res = await api.get('/campaigns');
-      const data = Array.isArray(res.data) ? res.data : (res.data.data || res.data.items || []);
+      setLoading(true);
+      const res = await api.get('/campaigns', { params: { page: p, limit: 20 } });
+      const data = res.data.data || (Array.isArray(res.data) ? res.data : []);
       setItems(data);
+      if (res.data.pagination) setPagination(res.data.pagination);
     } catch (err) {
       toast.error('Failed to load campaigns');
     } finally {
@@ -27,7 +32,7 @@ function Campaigns() {
     }
   }, []);
 
-  useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => { fetchItems(page); }, [fetchItems, page]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -44,7 +49,7 @@ function Campaigns() {
       toast.success('Campaign created successfully');
       setShowCreate(false);
       setForm({ ...emptyForm });
-      fetchItems();
+      fetchItems(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create campaign');
     }
@@ -63,7 +68,7 @@ function Campaigns() {
       toast.success('Campaign updated successfully');
       setShowEdit(false);
       setShowDetail(false);
-      fetchItems();
+      fetchItems(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update campaign');
     }
@@ -76,7 +81,7 @@ function Campaigns() {
       toast.success('Campaign deleted successfully');
       setShowDetail(false);
       setSelectedItem(null);
-      fetchItems();
+      fetchItems(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete campaign');
     }
@@ -101,7 +106,7 @@ function Campaigns() {
     return <span className={`badge ${map[status] || 'badge-primary'}`}>{status || 'draft'}</span>;
   };
 
-  if (loading) {
+  if (loading && items.length === 0) {
     return <div className="loading-container"><div className="spinner"></div><span className="loading-text">Loading campaigns...</span></div>;
   }
 
@@ -118,11 +123,11 @@ function Campaigns() {
   return (
     <div>
       <div className="page-header">
-        <div><h2>Campaigns</h2><p>Launch and track email campaigns</p></div>
+        <div><h2>Campaigns</h2><p>Launch and track email campaigns ({pagination.total || 0} total)</p></div>
         <button className="btn btn-primary" onClick={openCreate}><FiPlus /> New Campaign</button>
       </div>
 
-      {items.length === 0 ? (
+      {items.length === 0 && !loading ? (
         <div className="table-container"><div className="empty-state"><FiSend /><h3>No campaigns yet</h3><p>Create your first campaign to get started</p></div></div>
       ) : (
         <div className="table-container">
@@ -138,6 +143,7 @@ function Campaigns() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={pagination.totalPages} onPageChange={(p) => setPage(p)} />
         </div>
       )}
 
@@ -150,6 +156,14 @@ function Campaigns() {
             <div className="detail-item"><div className="detail-label">Segment ID</div><div className="detail-value">{selectedItem.segment_id != null ? selectedItem.segment_id : '-'}</div></div>
             <div className="detail-item"><div className="detail-label">Status</div><div className="detail-value">{getStatusBadge(selectedItem.status)}</div></div>
             <div className="detail-item"><div className="detail-label">Scheduled At</div><div className="detail-value">{selectedItem.scheduled_at ? new Date(selectedItem.scheduled_at).toLocaleString() : '-'}</div></div>
+            <div className="detail-item detail-full">
+              <div className="detail-label">Tracking Pixel</div>
+              <div className="detail-value">
+                <code style={{ fontSize: '11px', wordBreak: 'break-all' }}>
+                  {`<img src="http://localhost:3001/t/open/${selectedItem.id}.gif" width="1" height="1" style="display:none" />`}
+                </code>
+              </div>
+            </div>
           </div>
         )}
       </Modal>

@@ -17,6 +17,8 @@ import Schedules from './pages/Schedules';
 import Themes from './pages/Themes';
 import DripCampaigns from './pages/DripCampaigns';
 import AITools from './pages/AITools';
+import AIHistory from './pages/AIHistory';
+import AIOptimization from './pages/AIOptimization';
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -53,6 +55,8 @@ function App() {
         <Route path="/themes" element={<ProtectedRoute><Themes /></ProtectedRoute>} />
         <Route path="/drip-campaigns" element={<ProtectedRoute><DripCampaigns /></ProtectedRoute>} />
         <Route path="/ai-tools" element={<ProtectedRoute><AITools /></ProtectedRoute>} />
+        <Route path="/ai-history" element={<ProtectedRoute><AIHistory /></ProtectedRoute>} />
+        <Route path="/ai-optimization" element={<ProtectedRoute><AIOptimization /></ProtectedRoute>} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

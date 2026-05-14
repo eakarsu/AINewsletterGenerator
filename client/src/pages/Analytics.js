@@ -3,23 +3,29 @@ import { toast } from 'react-toastify';
 import { FiPlus, FiEdit2, FiTrash2, FiBarChart2 } from 'react-icons/fi';
 import api from '../api';
 import Modal from '../components/Modal';
+import Pagination from '../components/Pagination';
 
 const emptyForm = { campaign_id: '', sent_count: '', open_count: '', click_count: '', bounce_count: '', unsubscribe_count: '' };
 
 function Analytics() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ totalPages: 1, total: 0 });
+  const [summary, setSummary] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
 
-  const fetchItems = useCallback(async () => {
+  const fetchItems = useCallback(async (p = 1) => {
     try {
-      const res = await api.get('/analytics');
-      const data = Array.isArray(res.data) ? res.data : (res.data.data || res.data.items || []);
+      setLoading(true);
+      const res = await api.get('/analytics', { params: { page: p, limit: 20 } });
+      const data = res.data.data || (Array.isArray(res.data) ? res.data : []);
       setItems(data);
+      if (res.data.pagination) setPagination(res.data.pagination);
     } catch (err) {
       toast.error('Failed to load analytics');
     } finally {
@@ -27,7 +33,16 @@ function Analytics() {
     }
   }, []);
 
-  useEffect(() => { fetchItems(); }, [fetchItems]);
+  const fetchSummary = useCallback(async () => {
+    try {
+      const res = await api.get('/analytics/summary');
+      setSummary(res.data);
+    } catch (err) {
+      // non-fatal
+    }
+  }, []);
+
+  useEffect(() => { fetchItems(page); fetchSummary(); }, [fetchItems, fetchSummary, page]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -44,7 +59,8 @@ function Analytics() {
       toast.success('Analytics record created');
       setShowCreate(false);
       setForm({ ...emptyForm });
-      fetchItems();
+      fetchItems(page);
+      fetchSummary();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create record');
     }
@@ -63,7 +79,8 @@ function Analytics() {
       toast.success('Analytics record updated');
       setShowEdit(false);
       setShowDetail(false);
-      fetchItems();
+      fetchItems(page);
+      fetchSummary();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update record');
     }
@@ -76,7 +93,8 @@ function Analytics() {
       toast.success('Analytics record deleted');
       setShowDetail(false);
       setSelectedItem(null);
-      fetchItems();
+      fetchItems(page);
+      fetchSummary();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete record');
     }
@@ -100,7 +118,7 @@ function Analytics() {
   const openRate = (item) => item.sent_count > 0 ? ((item.open_count / item.sent_count) * 100).toFixed(1) + '%' : '0%';
   const clickRate = (item) => item.sent_count > 0 ? ((item.click_count / item.sent_count) * 100).toFixed(1) + '%' : '0%';
 
-  if (loading) {
+  if (loading && items.length === 0) {
     return <div className="loading-container"><div className="spinner"></div><span className="loading-text">Loading analytics...</span></div>;
   }
 
@@ -111,7 +129,26 @@ function Analytics() {
         <button className="btn btn-primary" onClick={openCreate}><FiPlus /> New Record</button>
       </div>
 
-      {items.length === 0 ? (
+      {/* Summary Dashboard */}
+      {summary && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+          {[
+            { label: 'Total Sent', value: Number(summary.total_sent || 0).toLocaleString() },
+            { label: 'Total Opens', value: Number(summary.total_opens || 0).toLocaleString() },
+            { label: 'Open Rate', value: `${summary.open_rate || 0}%`, highlight: true },
+            { label: 'Total Clicks', value: Number(summary.total_clicks || 0).toLocaleString() },
+            { label: 'Click Rate', value: `${summary.click_rate || 0}%`, highlight: true },
+            { label: 'Bounce Rate', value: `${summary.bounce_rate || 0}%` },
+          ].map((stat) => (
+            <div key={stat.label} style={{ background: '#fff', borderRadius: '8px', padding: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', textAlign: 'center' }}>
+              <div style={{ fontSize: '22px', fontWeight: 700, color: stat.highlight ? '#6366f1' : '#1e293b' }}>{stat.value}</div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {items.length === 0 && !loading ? (
         <div className="table-container"><div className="empty-state"><FiBarChart2 /><h3>No analytics data yet</h3><p>Analytics records will appear here</p></div></div>
       ) : (
         <div className="table-container">
@@ -132,6 +169,7 @@ function Analytics() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={pagination.totalPages} onPageChange={(p) => setPage(p)} />
         </div>
       )}
 

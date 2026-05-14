@@ -3,23 +3,28 @@ import { toast } from 'react-toastify';
 import { FiPlus, FiEdit2, FiTrash2, FiFileText } from 'react-icons/fi';
 import api from '../api';
 import Modal from '../components/Modal';
+import Pagination from '../components/Pagination';
 
 const emptyForm = { title: '', subject: '', content: '', status: 'draft', category: '' };
 
 function Newsletters() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ totalPages: 1, total: 0 });
   const [selectedItem, setSelectedItem] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
 
-  const fetchItems = useCallback(async () => {
+  const fetchItems = useCallback(async (p = 1) => {
     try {
-      const res = await api.get('/newsletters');
-      const data = Array.isArray(res.data) ? res.data : (res.data.data || res.data.items || []);
+      setLoading(true);
+      const res = await api.get('/newsletters', { params: { page: p, limit: 20 } });
+      const data = res.data.data || (Array.isArray(res.data) ? res.data : []);
       setItems(data);
+      if (res.data.pagination) setPagination(res.data.pagination);
     } catch (err) {
       toast.error('Failed to load newsletters');
     } finally {
@@ -27,7 +32,7 @@ function Newsletters() {
     }
   }, []);
 
-  useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => { fetchItems(page); }, [fetchItems, page]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -39,7 +44,7 @@ function Newsletters() {
       toast.success('Newsletter created successfully');
       setShowCreate(false);
       setForm({ ...emptyForm });
-      fetchItems();
+      fetchItems(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create newsletter');
     }
@@ -51,7 +56,7 @@ function Newsletters() {
       toast.success('Newsletter updated successfully');
       setShowEdit(false);
       setShowDetail(false);
-      fetchItems();
+      fetchItems(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update newsletter');
     }
@@ -64,7 +69,7 @@ function Newsletters() {
       toast.success('Newsletter deleted successfully');
       setShowDetail(false);
       setSelectedItem(null);
-      fetchItems();
+      fetchItems(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete newsletter');
     }
@@ -97,7 +102,7 @@ function Newsletters() {
     return <span className={`badge ${map[status] || 'badge-primary'}`}>{status || 'draft'}</span>;
   };
 
-  if (loading) {
+  if (loading && items.length === 0) {
     return (
       <div className="loading-container">
         <div className="spinner"></div>
@@ -111,14 +116,14 @@ function Newsletters() {
       <div className="page-header">
         <div>
           <h2>Newsletters</h2>
-          <p>Create and manage your AI-powered newsletters</p>
+          <p>Create and manage your AI-powered newsletters ({pagination.total || 0} total)</p>
         </div>
         <button className="btn btn-primary" onClick={openCreate}>
           <FiPlus /> New Newsletter
         </button>
       </div>
 
-      {items.length === 0 ? (
+      {items.length === 0 && !loading ? (
         <div className="table-container">
           <div className="empty-state">
             <FiFileText />
@@ -150,6 +155,7 @@ function Newsletters() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={pagination.totalPages} onPageChange={(p) => setPage(p)} />
         </div>
       )}
 
