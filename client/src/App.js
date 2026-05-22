@@ -19,6 +19,12 @@ import DripCampaigns from './pages/DripCampaigns';
 import AITools from './pages/AITools';
 import AIHistory from './pages/AIHistory';
 import AIOptimization from './pages/AIOptimization';
+import EditorialCalendar from './pages/EditorialCalendar';
+
+import CodexCustomVizFeature from './pages/CodexCustomVizFeature';
+import CodexOperationsFeature from './pages/CodexOperationsFeature';
+
+import TimelineView from './pages/TimelineView';
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -42,6 +48,10 @@ function App() {
         theme="light"
       />
       <Routes>
+        <Route path="/insights/timeline" element={<ProtectedRoute><TimelineView /></ProtectedRoute>} />
+        <Route path="/codex/custom-viz" element={<ProtectedRoute><CodexCustomVizFeature /></ProtectedRoute>} />
+        <Route path="/codex/operations" element={<ProtectedRoute><CodexOperationsFeature /></ProtectedRoute>} />
+
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/newsletters" element={<ProtectedRoute><Newsletters /></ProtectedRoute>} />
@@ -57,6 +67,7 @@ function App() {
         <Route path="/ai-tools" element={<ProtectedRoute><AITools /></ProtectedRoute>} />
         <Route path="/ai-history" element={<ProtectedRoute><AIHistory /></ProtectedRoute>} />
         <Route path="/ai-optimization" element={<ProtectedRoute><AIOptimization /></ProtectedRoute>} />
+        <Route path="/editorial-calendar" element={<ProtectedRoute><EditorialCalendar /></ProtectedRoute>} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

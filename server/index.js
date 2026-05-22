@@ -71,6 +71,7 @@ app.use('/api/schedules', require('./routes/schedules'));
 app.use('/api/themes', require('./routes/themes'));
 app.use('/api/drip-campaigns', require('./routes/drip-campaigns'));
 app.use('/api/ai', require('./routes/ai'));
+app.use('/api/editorial-calendar', require('./routes/editorialCalendar'));
 
 // Convenience unsubscribe route at /api/unsubscribe/:token (same handler as in subscribers router)
 app.get('/api/unsubscribe/:token', async (req, res) => {

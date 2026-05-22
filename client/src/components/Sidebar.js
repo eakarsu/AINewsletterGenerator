@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   FiHome, FiFileText, FiUsers, FiSend, FiLayout, FiBarChart2,
-  FiFilter, FiGitBranch, FiClock, FiDroplet, FiZap, FiCpu, FiLogOut, FiList, FiTrendingUp
+  FiFilter, FiGitBranch, FiClock, FiDroplet, FiZap, FiCpu, FiLogOut, FiList, FiTrendingUp, FiCalendar
 } from 'react-icons/fi';
 
 const navItems = [
@@ -17,6 +17,7 @@ const navItems = [
   { path: '/schedules', label: 'Schedules', icon: FiClock },
   { path: '/themes', label: 'Themes', icon: FiDroplet },
   { path: '/drip-campaigns', label: 'Drip Campaigns', icon: FiZap },
+  { path: '/editorial-calendar', label: 'Editorial Calendar', icon: FiCalendar },
   { path: '/ai-tools', label: 'AI Tools', icon: FiCpu },
   { path: '/ai-optimization', label: 'AI Optimization', icon: FiTrendingUp },
   { path: '/ai-history', label: 'AI History', icon: FiList },
