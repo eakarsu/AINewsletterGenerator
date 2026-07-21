@@ -1,0 +1,5 @@
+# Governed newsletter release
+The durable path is `/api/governed-newsletter-releases`. Releases move through source/rights locks, editable draft and asset versions, queued render receipts, quality/accessibility/brand review, independent send approval, publish receipt, and deterministic export status with tenant isolation and idempotency.
+Apply `server/migrations/001_governed_newsletter_release.sql` only through deployment controls. Provider, rights, storage/CDN, translation, email publishing, and usage adapters remain unconfigured until credentials, signed webhooks, retry/reconciliation tests, consent, and rights approval exist. Generated send-time and provider routes are quarantined; the governed layer never chooses a send time or sends.
+Real layout/client compatibility, accessibility, links, multilingual behavior, moderation, brand, disclosure, and deterministic HTML/PDF/archive rendering require versioned approved fixtures.
+Configure from `.env.example` and run `node --test server/governance/*.test.cjs` plus `bash -n start.sh`. Startup does not install, migrate, seed, create databases, or reclaim ports.

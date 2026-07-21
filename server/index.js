@@ -4,16 +4,19 @@ const helmet = require('helmet');
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 const pool = require('./db');
+const {validateRuntime}=require('./governance/runtime');
+const {createProviderGate}=require('./governance/providerGate');
+const governanceRouter=require('./governance/router');
+validateRuntime();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true,
-}));
+const allowedOrigins=String(process.env.CORS_ORIGINS||process.env.CLIENT_URL||'http://localhost:3000').split(',').map(v=>v.trim()).filter(Boolean);
+app.use(cors({origin:(origin,cb)=>!origin||allowedOrigins.includes(origin)?cb(null,true):cb(new Error('Origin not allowed by CORS')),credentials:true}));
 app.use(express.json({ limit: '10mb' }));
+app.use(createProviderGate(['/api/ai','/api/gap','/api/newsletter-agent','/api/content-personalization','/api/send-time-optimize']));
 
 // Tracking: open pixel
 // GET /t/open/:trackingId.gif
@@ -72,6 +75,7 @@ app.use('/api/themes', require('./routes/themes'));
 app.use('/api/drip-campaigns', require('./routes/drip-campaigns'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/editorial-calendar', require('./routes/editorialCalendar'));
+app.use('/api/governed-newsletter-releases',governanceRouter);
 
 // Convenience unsubscribe route at /api/unsubscribe/:token (same handler as in subscribers router)
 app.get('/api/unsubscribe/:token', async (req, res) => {

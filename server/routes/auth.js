@@ -5,12 +5,13 @@ const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const auth = require('../middleware/auth');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'newsletter-saas-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
+    if(!password||password.length<12)return res.status(400).json({error:'Password must be at least 12 characters'});
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }

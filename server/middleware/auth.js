@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'newsletter-saas-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function auth(req, res, next) {
+  if(!JWT_SECRET||JWT_SECRET.length<32)return res.status(500).json({error:'Authentication is not configured'});
   const header = req.headers.authorization;
   if (!header) {
     return res.status(401).json({ error: 'No token provided' });
