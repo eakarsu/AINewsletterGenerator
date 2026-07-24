@@ -1,6 +1,16 @@
 const pool = require('./db');
 const bcrypt = require('bcryptjs');
 
+if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DEMO_SEED !== 'true') {
+  throw new Error('Demo seed requires ALLOW_DEMO_SEED=true outside production');
+}
+const seedPassword = process.env.DEMO_SEED_PASSWORD || process.env.SEED_DEMO_PASSWORD || '';
+const seedEmail = process.env.DEMO_EMAIL || 'runtime-admin@example.com';
+const seedName = process.env.DEMO_ADMIN_NAME || 'RuntimeAdmin';
+if (seedPassword.length < 12) {
+  throw new Error('DEMO_SEED_PASSWORD must contain at least 12 characters');
+}
+
 async function seed() {
   const client = await pool.connect();
   try {
@@ -155,11 +165,11 @@ async function seed() {
 
     console.log('Tables created successfully');
 
-    // Seed demo user
-    const hashedPassword = await bcrypt.hash('demo123', 10);
+    // Seed the explicitly configured local verification user.
+    const hashedPassword = await bcrypt.hash(seedPassword, 10);
     const userResult = await client.query(
-      "INSERT INTO users (email, password, name) VALUES ('demo@newsletter.com', $1, 'Demo User') RETURNING id",
-      [hashedPassword]
+      'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id',
+      [seedEmail, hashedPassword, seedName]
     );
     const userId = userResult.rows[0].id;
 
@@ -181,7 +191,7 @@ async function seed() {
       ['noah@example.com', 'Noah Harris'],
     ];
     for (const [email, name] of users) {
-      const pw = await bcrypt.hash('password123', 10);
+      const pw = await bcrypt.hash(seedPassword, 10);
       await client.query('INSERT INTO users (email, password, name) VALUES ($1, $2, $3)', [email, pw, name]);
     }
     console.log('Users seeded: 15');
@@ -466,7 +476,7 @@ async function seed() {
 
     await client.query('COMMIT');
     console.log('\nSeeding completed successfully!');
-    console.log('Demo user: demo@newsletter.com / demo123');
+    console.log(`Verification user: ${seedEmail}`);
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Seeding failed:', err);

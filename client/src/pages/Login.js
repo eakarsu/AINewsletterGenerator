@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FiMail, FiLock, FiZap } from 'react-icons/fi';
+import { FiMail, FiLock } from 'react-icons/fi';
 import api from '../api';
 
 function Login() {
@@ -25,9 +25,7 @@ function Login() {
         toast.success('Login successful!');
         navigate('/dashboard');
       } else {
-        localStorage.setItem('token', 'demo-token');
-        toast.success('Login successful!');
-        navigate('/dashboard');
+        throw new Error('Login response did not include an access token');
       }
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Login failed';
@@ -35,11 +33,6 @@ function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleAutoFill = () => {
-    setEmail('demo@newsletter.com');
-    setPassword('demo123');
   };
 
   return (
@@ -73,10 +66,6 @@ function Login() {
           </div>
           <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
             {loading ? <><span className="spinner spinner-sm"></span> Signing in...</> : 'Sign In'}
-          </button>
-          <div className="divider">or</div>
-          <button type="button" className="btn btn-secondary btn-lg" onClick={handleAutoFill}>
-            <FiZap /> Auto Fill Demo Credentials
           </button>
         </form>
       </div>

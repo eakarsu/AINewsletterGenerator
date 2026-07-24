@@ -5,7 +5,7 @@ const auth = require('../middleware/auth');
 const pool = require('../db');
 const { aiRateLimiter } = require('../middleware/rateLimiter');
 
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_URL = `${(process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '')}/chat/completions`;
 
 // Create ai_results table on startup
 pool.query(`
@@ -29,6 +29,9 @@ function parseAIJson(text) {
 }
 
 async function callOpenRouter(messages) {
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY is not configured');
+  }
   const response = await axios.post(
     OPENROUTER_URL,
     {
@@ -45,7 +48,9 @@ async function callOpenRouter(messages) {
     }
   );
 
-  return response.data.choices[0].message.content;
+  const content = response.data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('OpenRouter returned no message content');
+  return content;
 }
 
 async function persistResult(userId, endpoint, inputData, result) {
