@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../api';
+import '../components/AIWorkspace.css';
 
 const sample = JSON.stringify({
   audience: 'B2B operators',
@@ -7,6 +8,12 @@ const sample = JSON.stringify({
   themes: ['industry trend', 'customer story', 'product tip'],
   nextSendDate: new Date().toISOString()
 }, null, 2);
+
+const calendarExamples = [
+  { label: 'Weekly editorial plan', payload: { audience: 'B2B operators; illustrative audience only', cadence: 'weekly', themes: ['verified industry trend', 'practical workflow', 'reader question'], nextSendDate: new Date(Date.now() + 7 * 86400000).toISOString() } },
+  { label: 'Community digest', payload: { audience: 'Opted-in community newsletter readers', cadence: 'biweekly', themes: ['upcoming events', 'community story with permission', 'local resource'], nextSendDate: new Date(Date.now() + 14 * 86400000).toISOString() } },
+  { label: 'Product education series', payload: { audience: 'Subscribers who selected product education', cadence: 'monthly', themes: ['feature guide', 'verified customer tip', 'support resource'], nextSendDate: new Date(Date.now() + 30 * 86400000).toISOString() } },
+];
 
 export default function EditorialCalendar() {
   const [payload, setPayload] = useState(sample);
@@ -32,6 +39,10 @@ export default function EditorialCalendar() {
       </div>
       <div className="content-grid">
         <div className="card">
+          <div className="ai-preset-bar" aria-label="Fill all editorial calendar inputs">
+            <div><strong>Fill all fields</strong><p>Each example fills the complete calendar request. Review the audience, themes, and date before planning.</p></div>
+            <div className="ai-actions">{calendarExamples.map((example) => <button key={example.label} type="button" className="btn btn-secondary" onClick={() => { setPayload(JSON.stringify(example.payload, null, 2)); setResult(null); setError(''); }}>{example.label}</button>)}</div>
+          </div>
           <textarea value={payload} onChange={(event) => setPayload(event.target.value)} rows={12} style={{ width: '100%', fontFamily: 'monospace' }} />
           {error && <div className="error-message">{error}</div>}
           <button className="btn btn-primary" onClick={run}>Plan calendar</button>

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { FiCpu, FiEdit3, FiType, FiSliders, FiImage, FiFileText, FiStar, FiChevronDown, FiChevronUp, FiZap } from 'react-icons/fi';
+import { FiEdit3, FiType, FiSliders, FiImage, FiFileText, FiStar, FiChevronDown, FiChevronUp, FiZap } from 'react-icons/fi';
 import api from '../api';
+import AIReport from '../components/AIReport';
+import FullFieldPresets from '../components/FullFieldPresets';
 
 const aiTools = [
   {
@@ -85,115 +87,41 @@ const aiTools = [
   },
 ];
 
-function formatAIOutput(output) {
-  if (!output) return null;
+const promptExamples = {
+  generate: [
+    { label: 'Weekly industry brief', values: { topic: 'Create a weekly newsletter about practical AI tools for small nonprofit teams. Cover one workflow example, implementation effort, privacy considerations, and questions readers should verify. Treat all details as illustrative unless sources are supplied.', tone: 'professional', length: 'medium' } },
+    { label: 'Friendly product update', values: { topic: 'Draft a friendly customer newsletter announcing a fictional spring update: clearer onboarding, improved search, and a new help center. Keep claims cautious and mark placeholder details for review.', tone: 'friendly', length: 'short' } },
+    { label: 'Editorial deep dive', values: { topic: 'Prepare a long-form editorial newsletter outline on sustainable urban gardening, with a clear opening, three practical sections, seasonal considerations, and a closing reader prompt. Do not invent statistics or citations.', tone: 'formal', length: 'long' } },
+  ],
+  'subject-lines': [
+    { label: 'Clear and useful', values: { content: 'A practical guide to organizing a weekly team newsletter: choose a reader need, verify source notes, use short sections, and review links before sending.', count: '3' } },
+    { label: 'Curiosity-led', values: { content: 'This issue shares three small workflow changes that can help a distributed team reduce meeting overload, along with a checklist for trying them safely.', count: '5' } },
+    { label: 'Seasonal campaign', values: { content: 'A spring edition featuring a seasonal planning checklist, a short editor note, and practical ideas readers can adapt to their own schedules.', count: '10' } },
+  ],
+  tone: [
+    { label: 'Professional rewrite', values: { content: 'We have updated the newsletter layout. Please review the new sections and tell us which information is most useful to your team.', target_tone: 'professional' } },
+    { label: 'Friendly rewrite', values: { content: 'The new newsletter layout is ready. Take a look, and let us know what would make it more useful for you.', target_tone: 'friendly' } },
+    { label: 'Empathetic rewrite', values: { content: 'We know inboxes are busy. This update makes the newsletter easier to scan, and your feedback will help us improve it.', target_tone: 'empathetic' } },
+  ],
+  images: [
+    { label: 'Editorial illustrations', values: { content: 'A newsletter about practical home energy conservation for renters, with accessible tips, neutral imagery, and no identifiable people or addresses.', count: '3' } },
+    { label: 'Product story', values: { content: 'A product update about a fictional reusable water bottle, highlighting everyday use, care instructions, and material details that still need source verification.', count: '5' } },
+    { label: 'Community spotlight', values: { content: 'A community newsletter about a neighborhood garden event. Suggest inclusive, consent-aware visual concepts that do not identify private individuals.', count: '8' } },
+  ],
+  summarize: [
+    { label: 'Brief summary', values: { content: 'This issue explains how to plan a weekly newsletter. Begin with a reader need, group verified notes into a few sections, use descriptive headings, check every link, and invite feedback. Avoid unsupported claims and keep private information out of shared drafts.', max_length: '50' } },
+    { label: 'Standard summary', values: { content: 'A product team is preparing an update for customers. The draft should explain what changed, who benefits, and where to get help. Dates, availability, and performance claims must be confirmed by the product owner before publication. Keep the message accessible and provide a clear way to share feedback.', max_length: '100' } },
+    { label: 'Detailed summary', values: { content: 'The editorial team plans a monthly community newsletter with an opening note, local resource roundup, upcoming events, and a reader contribution section. Editors will confirm event dates with organizers, use approved images, label sponsored content, and proofread links. Readers should be able to manage preferences or unsubscribe easily. The first edition is a planning example; confirm all real names, dates, permissions, and claims before sending.', max_length: '200' } },
+  ],
+  improve: [
+    { label: 'Clarity pass', values: { content: 'Our newsletter has several updates about the new planning toolkit. The toolkit is available now to invited pilot users. We will share broader availability only after the release date is confirmed.', focus: 'clarity' } },
+    { label: 'Engagement pass', values: { content: 'This month we are sharing a short checklist for writing a useful team newsletter. Choose one audience need, organize the important notes, and verify the details before you publish.', focus: 'engagement' } },
+    { label: 'Concise edit', values: { content: 'The upcoming issue includes a note from the editor, a guide to three planning resources, and a short list of dates to confirm with their organizers before publication.', focus: 'conciseness' } },
+  ],
+};
 
-  if (typeof output === 'string') {
-    const sections = output.split(/\n\n+/);
-    if (sections.length > 1) {
-      return sections.map((section, idx) => {
-        const lines = section.trim().split('\n');
-        const isHeader = lines[0] && (lines[0].startsWith('#') || lines[0].startsWith('**') || lines[0].endsWith(':'));
-        let headerText = lines[0];
-        if (headerText.startsWith('#')) headerText = headerText.replace(/^#+\s*/, '');
-        if (headerText.startsWith('**') && headerText.endsWith('**')) headerText = headerText.slice(2, -2);
-
-        if (isHeader && lines.length > 1) {
-          return (
-            <div key={idx} className="ai-output-section">
-              <h4>{headerText}</h4>
-              <div style={{ fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-                {lines.slice(1).map((line, i) => {
-                  const cleaned = line.replace(/^[-*]\s*/, '').replace(/^\d+\.\s*/, '');
-                  const isBullet = line.match(/^[-*]\s/) || line.match(/^\d+\.\s/);
-                  if (isBullet) {
-                    return <div key={i} style={{ paddingLeft: 16, position: 'relative', marginBottom: 4 }}>
-                      <span style={{ position: 'absolute', left: 0, color: '#6c63ff', fontWeight: 700 }}>&#8226;</span>
-                      {cleaned}
-                    </div>;
-                  }
-                  return <div key={i}>{line}</div>;
-                })}
-              </div>
-            </div>
-          );
-        }
-
-        return (
-          <div key={idx} style={{ marginBottom: 12, fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-            {lines.map((line, i) => {
-              const cleaned = line.replace(/^[-*]\s*/, '').replace(/^\d+\.\s*/, '');
-              const isBullet = line.match(/^[-*]\s/) || line.match(/^\d+\.\s/);
-              let text = line;
-              if (text.startsWith('#')) text = text.replace(/^#+\s*/, '');
-
-              if (isBullet) {
-                return <div key={i} style={{ paddingLeft: 16, position: 'relative', marginBottom: 4 }}>
-                  <span style={{ position: 'absolute', left: 0, color: '#6c63ff', fontWeight: 700 }}>&#8226;</span>
-                  {cleaned}
-                </div>;
-              }
-              return <div key={i} style={{ fontWeight: i === 0 && lines.length > 1 ? 600 : 400 }}>{text}</div>;
-            })}
-          </div>
-        );
-      });
-    }
-
-    return <div style={{ fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{output}</div>;
-  }
-
-  if (Array.isArray(output)) {
-    return output.map((item, idx) => {
-      if (typeof item === 'string') {
-        return (
-          <div key={idx} className="ai-output-section">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ background: '#6c63ff', color: '#fff', width: 24, height: 24, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{idx + 1}</span>
-              <span style={{ fontSize: 14, lineHeight: 1.6 }}>{item}</span>
-            </div>
-          </div>
-        );
-      }
-      if (typeof item === 'object') {
-        return (
-          <div key={idx} className="ai-output-section">
-            {Object.entries(item).map(([key, val]) => (
-              <div key={key} style={{ marginBottom: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#636e72', textTransform: 'uppercase', letterSpacing: 0.5 }}>{key.replace(/_/g, ' ')}</span>
-                <div style={{ fontSize: 14, marginTop: 2 }}>{typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val)}</div>
-              </div>
-            ))}
-          </div>
-        );
-      }
-      return <div key={idx}>{String(item)}</div>;
-    });
-  }
-
-  if (typeof output === 'object') {
-    const content = output.content || output.result || output.text || output.data || output.output || output.generated_content || output.message;
-    if (typeof content === 'string') {
-      return formatAIOutput(content);
-    }
-    if (Array.isArray(content)) {
-      return formatAIOutput(content);
-    }
-
-    return Object.entries(output).map(([key, val]) => {
-      if (key === 'success' || key === 'status') return null;
-      return (
-        <div key={key} className="ai-output-section">
-          <h4>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h4>
-          <div style={{ fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-            {typeof val === 'string' ? val : (Array.isArray(val) ? formatAIOutput(val) : JSON.stringify(val, null, 2))}
-          </div>
-        </div>
-      );
-    }).filter(Boolean);
-  }
-
-  return <div>{String(output)}</div>;
+function formatAIOutput(output, title) {
+  return <AIReport response={output} title={title || 'AI response'} />;
 }
 
 function AIToolCard({ tool }) {
@@ -248,6 +176,12 @@ function AIToolCard({ tool }) {
 
       {expanded && (
         <div className="ai-tool-body">
+          <FullFieldPresets
+            value={formData}
+            presets={promptExamples[tool.id]}
+            disabled={loading}
+            onChange={(next) => { setFormData(next); setOutput(null); }}
+          />
           {tool.fields.map((field) => (
             <div className="form-group" key={field.name}>
               <label>{field.label}</label>
@@ -298,7 +232,7 @@ function AIToolCard({ tool }) {
                 AI Generated Output
               </div>
               <div className="ai-output-content">
-                {formatAIOutput(output)}
+                {formatAIOutput(output, tool.title)}
               </div>
             </div>
           )}

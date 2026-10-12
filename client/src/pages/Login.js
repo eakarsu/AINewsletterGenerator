@@ -10,6 +10,29 @@ function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const signIn = async (loginEmail, loginPassword) => {
+    const res = await api.post('/auth/login', { email: loginEmail, password: loginPassword });
+    const token = res.data.token || res.data.accessToken || res.data.data?.token;
+    if (!token) throw new Error('Login response did not include an access token');
+    localStorage.setItem('token', token);
+    toast.success('Login successful!');
+    navigate('/dashboard');
+  };
+
+  const handleDemoLogin = async () => {
+    const demoEmail = process.env.REACT_APP_DEMO_EMAIL;
+    const demoPassword = process.env.REACT_APP_DEMO_PASSWORD;
+    if (loading) return;
+    if (!demoEmail || !demoPassword) {
+      toast.error('Demo login is not configured for this environment.');
+      return;
+    }
+    setLoading(true);
+    try { await signIn(demoEmail, demoPassword); }
+    catch (err) { toast.error(err.response?.data?.message || err.response?.data?.error || err.message || 'Demo login failed'); }
+    finally { setLoading(false); }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email || !password) {
@@ -18,15 +41,7 @@ function Login() {
     }
     setLoading(true);
     try {
-      const res = await api.post('/auth/login', { email, password });
-      const token = res.data.token || res.data.accessToken || res.data.data?.token;
-      if (token) {
-        localStorage.setItem('token', token);
-        toast.success('Login successful!');
-        navigate('/dashboard');
-      } else {
-        throw new Error('Login response did not include an access token');
-      }
+      await signIn(email, password);
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Login failed';
       toast.error(msg);
@@ -66,12 +81,12 @@ function Login() {
           </div>
           <button
             type="button"
-            onClick={() => { setEmail(process.env.REACT_APP_DEMO_EMAIL || ''); setPassword(process.env.REACT_APP_DEMO_PASSWORD || ''); }}
-            disabled={!process.env.REACT_APP_DEMO_EMAIL || !process.env.REACT_APP_DEMO_PASSWORD}
-            aria-label="Auto Fill Demo Credentials"
+            onClick={handleDemoLogin}
+            disabled={loading || !process.env.REACT_APP_DEMO_EMAIL || !process.env.REACT_APP_DEMO_PASSWORD}
+            aria-label="Log In as Demo"
             style={{ width: '100%', marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', border: '1px solid currentColor', background: 'transparent', cursor: 'pointer' }}
           >
-            Auto Fill Demo Credentials
+            {loading ? 'Signing in...' : 'Log In as Demo'}
           </button>
           <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
             {loading ? <><span className="spinner spinner-sm"></span> Signing in...</> : 'Sign In'}

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { FiCpu, FiUsers, FiClock, FiAlertTriangle, FiChevronDown, FiChevronUp, FiZap, FiTrendingUp, FiCopy } from 'react-icons/fi';
 import api from '../api';
+import AIReport from '../components/AIReport';
+import FullFieldPresets from '../components/FullFieldPresets';
 
 const tools = [
   {
@@ -144,39 +146,61 @@ const tools = [
   },
 ];
 
-function renderResult(output) {
-  if (!output) return null;
-  if (typeof output === 'string') {
-    return <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.7, margin: 0 }}>{output}</pre>;
-  }
-  if (Array.isArray(output)) {
-    return output.map((item, idx) => (
-      <div key={idx} className="ai-output-section">
-        {typeof item === 'object'
-          ? Object.entries(item).map(([k, v]) => (
-              <div key={k} style={{ marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#636e72', textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.replace(/_/g, ' ')}</span>
-                <div style={{ fontSize: 14, marginTop: 2 }}>{typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)}</div>
-              </div>
-            ))
-          : String(item)}
-      </div>
-    ));
-  }
-  if (typeof output === 'object') {
-    return Object.entries(output).map(([key, val]) => {
-      if (key === 'success' || key === 'status' || key === 'id') return null;
-      return (
-        <div key={key} className="ai-output-section">
-          <h4>{key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}</h4>
-          <div style={{ fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-            {typeof val === 'string' ? val : Array.isArray(val) ? renderResult(val) : JSON.stringify(val, null, 2)}
-          </div>
-        </div>
-      );
-    }).filter(Boolean);
-  }
-  return <div>{String(output)}</div>;
+const examples = {
+  'segment-optimize': [
+    { label: 'Engagement groups', values: { subscribers: JSON.stringify([{ id: 'sample-1', engagement: 'high', tags: ['product'] }, { id: 'sample-2', engagement: 'medium', tags: ['events'] }, { id: 'sample-3', engagement: 'low', tags: ['product'] }], null, 2), goal: 'Improve newsletter relevance while keeping segments large enough to evaluate.', current_segments: 'New, Active, Lapsed' } },
+    { label: 'Topic preferences', values: { subscribers: JSON.stringify([{ id: 'sample-4', engagement: 'high', tags: ['research', 'events'] }, { id: 'sample-5', engagement: 'medium', tags: ['product'] }, { id: 'sample-6', engagement: 'low', tags: ['research'] }], null, 2), goal: 'Suggest interpretable topic-based segments and identify missing evidence.', current_segments: 'General, Product, Community' } },
+    { label: 'Reactivation review', values: { subscribers: JSON.stringify([{ id: 'sample-7', engagement: 'low', tags: ['newsletter'] }, { id: 'sample-8', engagement: 'medium', tags: ['community'] }, { id: 'sample-9', engagement: 'high', tags: ['product'] }], null, 2), goal: 'Compare a cautious re-engagement group with active readers; avoid implying consent to send.', current_segments: 'Active, Quiet, Recently joined' } },
+  ],
+  'send-time-optimize': [
+    { label: 'Eastern audience', values: { audience: 'Illustrative US East Coast small-business readers; sample is fictional.', timezone: 'America/New_York', past_performance: JSON.stringify([{ day: 'Tue', hour: 10, open_rate: 0.31 }, { day: 'Thu', hour: 14, open_rate: 0.28 }], null, 2) } },
+    { label: 'Central audience', values: { audience: 'Illustrative Central time community subscribers; confirm location and consent data.', timezone: 'America/Chicago', past_performance: JSON.stringify([{ day: 'Wed', hour: 9, open_rate: 0.29 }, { day: 'Fri', hour: 11, open_rate: 0.26 }], null, 2) } },
+    { label: 'UK audience', values: { audience: 'Illustrative UK professional readership; synthetic engagement examples only.', timezone: 'Europe/London', past_performance: JSON.stringify([{ day: 'Tue', hour: 8, open_rate: 0.32 }, { day: 'Thu', hour: 16, open_rate: 0.25 }], null, 2) } },
+  ],
+  'churn-detection': [
+    { label: '30-day review', values: { subscribers: JSON.stringify([{ id: 'sample-a', last_open_days: 42, opens_last_30: 0 }, { id: 'sample-b', last_open_days: 18, opens_last_30: 1 }], null, 2), lookback_days: '30' } },
+    { label: '60-day review', values: { subscribers: JSON.stringify([{ id: 'sample-c', last_open_days: 73, opens_last_30: 0 }, { id: 'sample-d', last_open_days: 37, opens_last_30: 2 }], null, 2), lookback_days: '60' } },
+    { label: '90-day review', values: { subscribers: JSON.stringify([{ id: 'sample-e', last_open_days: 105, opens_last_30: 0 }, { id: 'sample-f', last_open_days: 60, opens_last_30: 1 }], null, 2), lookback_days: '90' } },
+  ],
+  'subscriber-prediction': [
+    { label: 'Open-rate forecast', values: { subscribers: JSON.stringify([{ id: 'sample-g', opens_last_30: 3, clicks_last_30: 1 }, { id: 'sample-h', opens_last_30: 1, clicks_last_30: 0 }], null, 2), target_metric: 'open_rate', horizon_days: '30' } },
+    { label: 'Engagement forecast', values: { subscribers: JSON.stringify([{ id: 'sample-i', opens_last_30: 6, clicks_last_30: 2 }, { id: 'sample-j', opens_last_30: 2, clicks_last_30: 1 }], null, 2), target_metric: 'engagement', horizon_days: '60' } },
+    { label: 'Churn forecast', values: { subscribers: JSON.stringify([{ id: 'sample-k', opens_last_30: 0, clicks_last_30: 0 }, { id: 'sample-l', opens_last_30: 1, clicks_last_30: 0 }], null, 2), target_metric: 'churn', horizon_days: '90' } },
+  ],
+  'list-dedupe': [
+    { label: 'Case normalization', values: { subscribers: JSON.stringify([{ id: 'sample-10', email: 'reader1@example.invalid', name: 'Sample Reader' }, { id: 'sample-11', email: 'READER1@example.invalid', name: 'Sample Reader' }], null, 2) } },
+    { label: 'Whitespace review', values: { subscribers: JSON.stringify([{ id: 'sample-12', email: 'reader2@example.invalid', name: 'Example Two' }, { id: 'sample-13', email: ' reader2@example.invalid ', name: 'Example 2' }], null, 2) } },
+    { label: 'Similar records', values: { subscribers: JSON.stringify([{ id: 'sample-14', email: 'reader3@example.invalid', name: 'Sample Three' }, { id: 'sample-15', email: 'reader-three@example.invalid', name: 'Sample Three' }], null, 2) } },
+  ],
+  'agentic-campaign-orchestrate': [
+    { label: 'Trial education plan', values: { goal: 'Plan a 30-day educational campaign for a fictional product trial. Plan only; do not send messages or assume consent.', audience: 'Small-business operators who opted in to product updates; illustrative audience.', brand_voice: 'Helpful, concise, evidence-led', time_horizon_days: '30' } },
+    { label: 'Event awareness plan', values: { goal: 'Outline a two-week newsletter campaign to raise awareness of a fictional online workshop. Include review checkpoints and no automatic sends.', audience: 'Existing subscribers interested in professional development; illustrative only.', brand_voice: 'Warm, practical, inclusive', time_horizon_days: '14' } },
+    { label: 'Community digest plan', values: { goal: 'Plan a monthly community digest with editorial approval before every send.', audience: 'Readers who explicitly subscribed to community updates; sample segment.', brand_voice: 'Friendly, transparent, accessible', time_horizon_days: '30' } },
+  ],
+  'batch-content-variants': [
+    { label: 'Feature announcement', values: { brief: 'Explain a fictional newsletter search feature, its reader benefit, and where to find a short guide. Avoid unsupported performance claims.', audience: 'Existing product newsletter readers', variant_count: '3', tones: JSON.stringify(['clear', 'curious', 'friendly'], null, 2) } },
+    { label: 'Event invitation', values: { brief: 'Invite readers to a fictional 30-minute online planning workshop. Leave date, registration link, and presenter names as placeholders for editor review.', audience: 'Busy independent business owners', variant_count: '4', tones: JSON.stringify(['warm', 'direct', 'professional', 'playful'], null, 2) } },
+    { label: 'Monthly digest', values: { brief: 'Introduce a monthly digest with three verified resources and a reader feedback prompt. Do not invent links or facts.', audience: 'Community subscribers', variant_count: '5', tones: JSON.stringify(['concise', 'helpful', 'optimistic'], null, 2) } },
+  ],
+  'vertical-template': [
+    { label: 'SaaS newsletter', values: { vertical: 'B2B SaaS product updates', tone: 'Professional, practical, and transparent', sections: JSON.stringify(['editor_note', 'product_update', 'customer_tip', 'verified_resource', 'feedback_cta'], null, 2) } },
+    { label: 'Community newsletter', values: { vertical: 'Local community organization', tone: 'Warm, inclusive, accessible', sections: JSON.stringify(['welcome', 'upcoming_events', 'community_story', 'local_resources', 'preferences_cta'], null, 2) } },
+    { label: 'Education digest', values: { vertical: 'Continuing education and professional learning', tone: 'Encouraging, evidence-led, concise', sections: JSON.stringify(['learning_highlight', 'practical_exercise', 'verified_reading', 'schedule_note', 'reader_question'], null, 2) } },
+  ],
+  'dynamic-content-blocks': [
+    { label: 'New and returning readers', values: { segments: JSON.stringify([{ name: 'new_reader', desc: 'Recently opted in; needs a clear introduction' }, { name: 'returning_reader', desc: 'Engaged with prior issues; appreciates useful follow-up' }], null, 2), base_content: 'Shared theme: a practical monthly planning checklist. Keep every block accurate and easy to scan.' } },
+    { label: 'Topic preferences', values: { segments: JSON.stringify([{ name: 'product_updates', desc: 'Selected product news preferences' }, { name: 'community_events', desc: 'Selected community event preferences' }, { name: 'learning_resources', desc: 'Selected educational resource preferences' }], null, 2), base_content: 'Shared theme: highlight one verified resource and respect each subscriber’s saved preferences.' } },
+    { label: 'Engagement stages', values: { segments: JSON.stringify([{ name: 'active', desc: 'Recent voluntary engagement' }, { name: 'quiet', desc: 'Limited recent engagement; avoid pressure' }], null, 2), base_content: 'Shared theme: provide useful editorial content and a clear preference-management link.' } },
+  ],
+  'realtime-subscriber-intel': [
+    { label: 'Recent week', values: { recent_activity: JSON.stringify([{ event: 'open', day: 'Mon', count: 24 }, { event: 'click', day: 'Tue', count: 7 }, { event: 'unsubscribe', day: 'Fri', count: 1 }], null, 2), lookback_days: '7' } },
+    { label: 'Two-week pulse', values: { recent_activity: JSON.stringify([{ event: 'signup', day: 'Mon', count: 9 }, { event: 'open', day: 'Wed', count: 42 }, { event: 'click', day: 'Thu', count: 11 }], null, 2), lookback_days: '14' } },
+    { label: 'Monthly review', values: { recent_activity: JSON.stringify([{ event: 'open', day: 'week_1', count: 86 }, { event: 'click', day: 'week_2', count: 19 }, { event: 'unsubscribe', day: 'week_4', count: 3 }], null, 2), lookback_days: '30' } },
+  ],
+};
+
+function renderResult(output, title) {
+  return <AIReport response={output} title={title || 'AI optimization result'} />;
 }
 
 function ToolCard({ tool }) {
@@ -246,6 +270,12 @@ function ToolCard({ tool }) {
 
       {expanded && (
         <div className="ai-tool-body">
+          <FullFieldPresets
+            value={formData}
+            presets={examples[tool.id]}
+            disabled={loading}
+            onChange={(next) => { setFormData(next); setOutput(null); setError(''); }}
+          />
           {tool.fields.map((field) => (
             <div className="form-group" key={field.name}>
               <label>{field.label}</label>
@@ -297,7 +327,7 @@ function ToolCard({ tool }) {
                 <FiCpu />
                 AI Result
               </div>
-              <div className="ai-output-content">{renderResult(output)}</div>
+              <div className="ai-output-content">{renderResult(output, tool.title)}</div>
             </div>
           )}
         </div>

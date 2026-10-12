@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { FiCpu } from 'react-icons/fi';
 import api from '../api';
 import Pagination from '../components/Pagination';
+import AIReport from '../components/AIReport';
 
 function AIHistory() {
   const [items, setItems] = useState([]);
@@ -115,9 +116,7 @@ function AIHistory() {
                             </div>
                             <div>
                               <strong>Result:</strong>
-                              <pre style={{ marginTop: '4px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: '12px', color: '#475569' }}>
-                                {JSON.stringify(item.result, null, 2)}
-                              </pre>
+                              <AIReport response={item.result} title={`${endpointLabel(item.endpoint)} result`} />
                             </div>
                           </div>
                         </td>
